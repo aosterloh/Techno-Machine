@@ -715,24 +715,28 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     // 16th notes = 0.25 beats
     nextNoteTimeRef.current += 0.25 * secondsPerBeat;
     currentStepRef.current++;
-    if (currentStepRef.current === 64) {
+    
+    // Reset based on barLength (each bar is 16 steps)
+    if (currentStepRef.current >= barLengthRef.current * 16) {
       currentStepRef.current = 0;
       
-      let nextBar = currentBarRef.current + 1;
-      if (nextBar > barLengthRef.current) {
-        nextBar = 1;
-        activeGridRef.current = gridRef.current;
-        activeVelocityGridRef.current = velocityGridRef.current;
-        activeMoogSequenceRef.current = moogSequenceRef.current;
-        activeSynth1SequenceRef.current = synth1SequenceRef.current;
-        activeSynth2SequenceRef.current = synth2SequenceRef.current;
-        activeTrackModesRef.current = trackModesRef.current;
-        setActiveTrackModes(trackModesRef.current);
-      }
-      currentBarRef.current = nextBar;
-      setCurrentBar(nextBar);
+      // Update active sequences from main state at the start of the loop
+      activeGridRef.current = gridRef.current;
+      activeVelocityGridRef.current = velocityGridRef.current;
+      activeMoogSequenceRef.current = moogSequenceRef.current;
+      activeSynth1SequenceRef.current = synth1SequenceRef.current;
+      activeSynth2SequenceRef.current = synth2SequenceRef.current;
+      activeTrackModesRef.current = trackModesRef.current;
+      setActiveTrackModes(trackModesRef.current);
       
       totalBarsRef.current++;
+    }
+
+    // Update current bar based on current step (1-4)
+    const bar = Math.floor(currentStepRef.current / 16) + 1;
+    if (bar !== currentBarRef.current) {
+      currentBarRef.current = bar;
+      setCurrentBar(bar);
     }
   };
 
@@ -941,8 +945,8 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
               >
                 <option value={1}>1 Bar</option>
                 <option value={2}>2 Bars</option>
+                <option value={3}>3 Bars</option>
                 <option value={4}>4 Bars</option>
-                <option value={8}>8 Bars</option>
               </select>
             </div>
             <div className="flex flex-col items-center justify-center px-2">
