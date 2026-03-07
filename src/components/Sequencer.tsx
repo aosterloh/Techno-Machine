@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import React, { useEffect, useState, useRef } from 'react';
 import { AudioEngine, SubBassSettings, SynthSettings } from '../audio';
-import { Play, Square, Volume2, Wand2 } from 'lucide-react';
+import { Play, Square, Volume2, Wand2, Save, Upload } from 'lucide-react';
 
 const TRACKS = ['Ride', 'HH3', 'HH2', 'HH1', 'Clap', 'Snare', 'Kick 2', 'Kick 1'];
 
@@ -248,6 +248,83 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
   
   const [barLength, setBarLength] = useState(4);
   const [currentBar, setCurrentBar] = useState(1);
+
+  const handleSaveSong = () => {
+    const songData = {
+      version: "1.0",
+      timestamp: new Date().toISOString(),
+      grid,
+      bpm,
+      volumes,
+      trackModes,
+      fxSettings,
+      moogSequence,
+      moogVolume,
+      moogSettings,
+      synth1Sequence,
+      synth1Volume,
+      synth1Settings,
+      synth2Sequence,
+      synth2Volume,
+      synth2Settings,
+      subBassSequence,
+      subBassVolume,
+      subBassSettings,
+      velocityGrid,
+    };
+
+    const blob = new Blob([JSON.stringify(songData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `techno-song-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadSong = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        
+        // Basic validation and state updates
+        if (data.grid) setGrid(data.grid);
+        if (data.bpm) setBpm(data.bpm);
+        if (data.volumes) setVolumes(data.volumes);
+        if (data.trackModes) setTrackModes(data.trackModes);
+        if (data.fxSettings) setFxSettings(data.fxSettings);
+        if (data.moogSequence) setMoogSequence(data.moogSequence);
+        if (data.moogVolume) setMoogVolume(data.moogVolume);
+        if (data.moogSettings) setMoogSettings(data.moogSettings);
+        if (data.synth1Sequence) setSynth1Sequence(data.synth1Sequence);
+        if (data.synth1Volume) setSynth1Volume(data.synth1Volume);
+        if (data.synth1Settings) setSynth1Settings(data.synth1Settings);
+        if (data.synth2Sequence) setSynth2Sequence(data.synth2Sequence);
+        if (data.synth2Volume) setSynth2Volume(data.synth2Volume);
+        if (data.synth2Settings) setSynth2Settings(data.synth2Settings);
+        if (data.subBassSequence) setSubBassSequence(data.subBassSequence);
+        if (data.subBassVolume) setSubBassVolume(data.subBassVolume);
+        if (data.subBassSettings) setSubBassSettings(data.subBassSettings);
+        if (data.velocityGrid) setVelocityGrid(data.velocityGrid);
+
+        // Reset transport
+        setCurrentStep(0);
+        setIsPlaying(false);
+      } catch (err) {
+        console.error("Failed to load song:", err);
+        alert("Invalid song file format.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    event.target.value = '';
+  };
   
   const [musicalKey, setMusicalKey] = useState('A');
   const [scaleType, setScaleType] = useState('minor');
@@ -871,6 +948,33 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
             <div className="flex flex-col items-center justify-center px-2">
               <label className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mb-1">Current</label>
               <div className="text-emerald-400 font-mono font-bold text-lg leading-none">{currentBar}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-zinc-950/50 px-4 py-2 rounded-xl border border-zinc-800">
+            <div className="flex flex-col">
+              <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Project</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveSong}
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-zinc-700 rounded transition-colors"
+                  title="Save Song to File"
+                >
+                  <Save size={16} />
+                </button>
+                <label 
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 text-cyan-400 border border-zinc-700 rounded transition-colors cursor-pointer"
+                  title="Load Song from File"
+                >
+                  <Upload size={16} />
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleLoadSong}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
           </div>
 
