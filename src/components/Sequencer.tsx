@@ -273,12 +273,21 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     sustain: 0.001,
     cutoff: 100,
     resonance: 1,
-    envAmount: 0.5
+    envAmount: 0.5,
+    drive: 0.2,
+    pitchEnv: 0.5
   });
+
+  const SUB_BASS_PRESETS: Record<string, SubBassSettings> = {
+    'Deep Sine': { decay: 0.8, sustain: 0.001, cutoff: 60, resonance: 1, envAmount: 0.2, drive: 0, pitchEnv: 0.2 },
+    'Rumble': { decay: 0.2, sustain: 0.001, cutoff: 120, resonance: 5, envAmount: 0.8, drive: 0.4, pitchEnv: 1.5 },
+    'Drive': { decay: 0.4, sustain: 0.001, cutoff: 200, resonance: 2, envAmount: 0.5, drive: 0.7, pitchEnv: 0.5 },
+    'Subby': { decay: 0.6, sustain: 0.1, cutoff: 80, resonance: 8, envAmount: 0.3, drive: 0.1, pitchEnv: 0.1 },
+  };
   
   const [hintIndex, setHintIndex] = useState(0);
   
-  const [barLength, setBarLength] = useState(4);
+  const [barLength, setBarLength] = useState(1);
   const [currentBar, setCurrentBar] = useState(1);
   const [queuedFx, setQueuedFx] = useState<string | null>(null);
 
@@ -686,7 +695,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
             delay: fx.delay,
             reverb: fx.reverb,
             time: delayTime
-          });
+          }, trackIndex);
         }
       }
     });
@@ -702,7 +711,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
           delay: fx.delay,
           reverb: fx.reverb,
           time: delayTime
-        });
+        }, 9);
       }
     }
 
@@ -717,7 +726,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
           delay: fx.delay,
           reverb: fx.reverb,
           time: delayTime
-        });
+        }, 10);
       }
     }
     
@@ -728,11 +737,11 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
       if (moogStep !== null) {
         const fx = fxSettingsRef.current[11];
         const freq = getFreq(moogStep.scaleDegree, -1, musicalKeyRef.current, scaleTypeRef.current);
-        audioEngineRef.current?.playMoogBass(time, freq, moogVolumeRef.current, moogSettingsRef.current, {
+        audioEngineRef.current?.playMelodicSynth(time, freq, moogVolumeRef.current, moogSettingsRef.current, {
           delay: fx.delay,
           reverb: fx.reverb,
           time: delayTime
-        });
+        }, 11);
       }
     }
     
@@ -748,7 +757,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
           delay: fx.delay,
           reverb: fx.reverb,
           time: delayTime
-        });
+        }, 12);
       }
     }
 
@@ -759,7 +768,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
         delay: 0,
         reverb: 2,
         time: 0
-      });
+      }, 0);
       // Clear queue
       setTimeout(() => setQueuedFx(null), 0);
     }
@@ -1518,7 +1527,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
                             delay: 0,
                             reverb: 0,
                             time: 0
-                          });
+                          }, i);
                         }
                       }}
                       options={AVAILABLE_SAMPLES.filter(sample => {
@@ -1663,12 +1672,14 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
                 <button
                   onClick={() => {
                     // 1. Randomize modulation parameters
-                    const newSettings = {
+                    const newSettings: SubBassSettings = {
                       cutoff: Math.floor(40 + Math.random() * 100),
                       resonance: Math.floor(Math.random() * 12),
                       decay: parseFloat((0.1 + Math.random() * 0.4).toFixed(2)),
                       sustain: 0.001,
-                      envAmount: Math.floor(200 + Math.random() * 1000)
+                      envAmount: parseFloat(Math.random().toFixed(2)),
+                      drive: parseFloat(Math.random().toFixed(2)),
+                      pitchEnv: parseFloat((Math.random() * 2).toFixed(2))
                     };
                     setSubBassSettings(newSettings);
 
@@ -1720,6 +1731,30 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
                   <span className="text-[10px] text-zinc-500 font-mono w-8">{subBassSettings.cutoff}</span>
                 </div>
                 <div className="flex items-center gap-2 bg-zinc-950/50 px-2 py-1 rounded border border-zinc-800">
+                  <span className="text-[10px] text-cyan-400 font-bold w-10">Drive</span>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="1" 
+                    step="0.01" 
+                    value={subBassSettings.drive} 
+                    onChange={e => setSubBassSettings({...subBassSettings, drive: parseFloat(e.target.value)})} 
+                    className="w-20 accent-cyan-500" 
+                  />
+                </div>
+                <div className="flex items-center gap-2 bg-zinc-950/50 px-2 py-1 rounded border border-zinc-800">
+                  <span className="text-[10px] text-cyan-400 font-bold w-10">Punch</span>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="2" 
+                    step="0.01" 
+                    value={subBassSettings.pitchEnv} 
+                    onChange={e => setSubBassSettings({...subBassSettings, pitchEnv: parseFloat(e.target.value)})} 
+                    className="w-20 accent-cyan-500" 
+                  />
+                </div>
+                <div className="flex items-center gap-2 bg-zinc-950/50 px-2 py-1 rounded border border-zinc-800">
                   <span className="text-[10px] text-cyan-400 font-bold w-10">Res</span>
                   <input 
                     type="range" 
@@ -1754,6 +1789,17 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
                     onChange={e => setSubBassSettings({...subBassSettings, envAmount: parseFloat(e.target.value)})} 
                     className="w-20 accent-cyan-500" 
                   />
+                </div>
+                <div className="flex items-center gap-1 ml-2">
+                  {Object.keys(SUB_BASS_PRESETS).map(name => (
+                    <button
+                      key={name}
+                      onClick={() => setSubBassSettings(SUB_BASS_PRESETS[name])}
+                      className="px-2 py-1 bg-zinc-900 border border-zinc-800 rounded text-[9px] text-zinc-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-colors"
+                    >
+                      {name}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
