@@ -4,9 +4,8 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { WebcamCapture } from './components/WebcamCapture';
 import { Sequencer } from './components/Sequencer';
-import { Music, Camera, CameraOff, Info, X } from 'lucide-react';
+import { Music, Info, X } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -68,12 +67,11 @@ Create a class that manages an \`AudioContext\`. Implement methods to:
 The UI should feel like a piece of hardware. Use high-contrast colors (Emerald for drums, Purple for bass, Blue for delay) and visible grid structures to help the user stay oriented during a fast-paced performance.`;
 
 export default function App() {
-  // 8 rows, 64 cols for 4 pages. 0 means off, 1/2/4/8 means repeat interval
+  // 9 rows (sample tracks), 64 cols for 4 pages. 0 means off, 1/2/4/8 means repeat interval
   const [grid, setGrid] = useState<number[][]>(
-    Array(8).fill(null).map(() => Array(64).fill(0))
+    Array(9).fill(null).map(() => Array(64).fill(0))
   );
   const [currentPage, setCurrentPage] = useState(0);
-  const [isCameraOn, setIsCameraOn] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [genreInfo, setGenreInfo] = useState<{title: string, content: string} | null>(null);
 
@@ -89,33 +87,6 @@ export default function App() {
       setGenreInfo({ title: genre, content: GENRE_DETAILS[genre] });
     }
   };
-
-  const handleGridUpdate = useCallback((newGrid: boolean[][]) => {
-    setGrid(prev => {
-      const start = currentPage * 16;
-      return prev.map((row, r) => row.map((val, c) => {
-        // Only update columns on the current page
-        if (c >= start && c < start + 16) {
-          const colOnPage = c - start;
-          const isStone = newGrid[r][colOnPage];
-          if (isStone && val === 0) return 1; // new stone defaults to 1
-          if (!isStone) return 0; // stone removed
-          return val; // stone still there, keep existing repeat value
-        }
-        
-        // Mirror Page 1 to other pages if we are on Page 1
-        if (currentPage === 0 && c >= 16) {
-          const colOnPage = c % 16;
-          const isStone = newGrid[r][colOnPage];
-          if (isStone && prev[r][colOnPage] === 0) return 1;
-          if (!isStone) return 0;
-          return prev[r][colOnPage];
-        }
-
-        return val; // other pages stay as they are
-      }));
-    });
-  }, [currentPage]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 font-sans">
@@ -140,27 +111,6 @@ export default function App() {
               </button>
             </div>
           </div>
-          
-          <button
-            onClick={() => setIsCameraOn(!isCameraOn)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isCameraOn 
-                ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' 
-                : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
-            }`}
-          >
-            {isCameraOn ? (
-              <>
-                <CameraOff size={18} />
-                <span>Turn Camera Off</span>
-              </>
-            ) : (
-              <>
-                <Camera size={18} />
-                <span>Turn Camera On</span>
-              </>
-            )}
-          </button>
         </header>
 
         <div className="flex flex-col gap-8 items-center">
@@ -173,12 +123,6 @@ export default function App() {
               onTemplateSelect={handleTemplateSelect} 
             />
           </div>
-          
-          {isCameraOn && (
-            <div className="w-full max-w-2xl space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-              <WebcamCapture onGridUpdate={handleGridUpdate} />
-            </div>
-          )}
         </div>
 
         <AnimatePresence>

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { AudioEngine, SubBassSettings, SynthSettings } from '../audio';
 import { Play, Square, Volume2, Wand2, Save, Upload } from 'lucide-react';
 
-const TRACKS = ['Ride', 'HH3', 'HH2', 'HH1', 'Clap', 'Snare', 'Kick 2', 'Kick 1'];
+const TRACKS = ['Kick', 'Snare', 'Clap', 'Hat 1', 'Hat 2', 'Hat 3', 'Perc', 'Ride', 'Shaker'];
 
 const TECHNO_HINTS = [
   "Techno Hint: Place Kicks on 1, 5, 9, and 13 for a solid 4/4 beat.",
@@ -14,144 +14,40 @@ const TECHNO_HINTS = [
   "Techno Hint: Keep the low-end clean—don't overlap bass and kick too much."
 ];
 
-const sampleModules = import.meta.glob('/samples/*.wav', { query: '?url', import: 'default', eager: true });
+const sampleModules = import.meta.glob(['/samples/**/*.wav', '!/samples/**/*#*'], { query: '?url', import: 'default', eager: true });
 const AVAILABLE_SAMPLES = Object.keys(sampleModules).map(path => {
-  const fileName = path.split('/').pop()!;
+  const parts = path.split('/');
+  const fileName = parts.pop()!;
+  const folder = parts[parts.length - 1]; // e.g. 'Kicks'
   const displayName = fileName.replace(/\.wav$/i, '').replace(/[_\d]/g, '').trim();
-  return { fileName, displayName, url: sampleModules[path] as string };
+  const fullDisplayName = fileName.replace(/\.wav$/i, '');
+  return { 
+    id: path, // Use full path as ID
+    fileName, 
+    displayName, 
+    fullDisplayName,
+    url: sampleModules[path] as string,
+    folder
+  };
 });
 
-const DEFAULT_TRACKS = ['Ride.wav', 'HH3.wav', 'HH2.wav', 'HH1.wav', 'Clap.wav', 'Snare.wav', 'Kick_2.wav', 'Kick_1.wav'];
+const DEFAULT_TRACKS = [
+  '/samples/Kicks/JO_RT_Kick_01_A.wav',
+  '/samples/Snares/JO_RT_Snare_01.wav',
+  '/samples/Claps/JO_RT_Clap_01.wav',
+  '/samples/Hats/JO_RT_Hat_01.wav',
+  '/samples/Hats/JO_RT_Hat_02.wav',
+  '/samples/Hats/JO_RT_Hat_03.wav',
+  '/samples/Percs/JO_RT_Perc_01.wav',
+  '/samples/Rides/JO_RT_Ride_01.wav',
+  '/samples/Shakers/JO_RT_Shaker_01.wav'
+];
 
 const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const BASE_FREQS = [65.41, 69.30, 73.42, 77.78, 82.41, 87.31, 92.50, 98.00, 103.83, 110.00, 116.54, 123.47];
 const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11, 12];
 const MINOR_INTERVALS = [0, 2, 3, 5, 7, 8, 10, 12];
-
-type TechnoPattern = {
-  name: string;
-  grid: number[][]; // 8x16
-};
-
-const TECHNO_PATTERNS: TechnoPattern[] = [
-  {
-    name: "Minimal Techno",
-    grid: [
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Ride
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH3
-      Array(4).fill([0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]).flat(), // HH2
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0]).flat(), // Snare
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Kick 2
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // Kick 1
-    ]
-  },
-  {
-    name: "Melodic Techno",
-    grid: [
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // Ride
-      Array(4).fill([0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]).flat(), // HH3
-      Array(4).fill([1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1]).flat(), // HH2
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Snare
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Kick 2
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // Kick 1
-    ]
-  },
-  {
-    name: "Ambient Techno",
-    grid: [
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Ride
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH3
-      Array(4).fill([0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]).flat(), // HH2
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Snare
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Kick 2
-      Array(4).fill([1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0]).flat(), // Kick 1
-    ]
-  },
-  {
-    name: "Dub Techno",
-    grid: [
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Ride
-      Array(4).fill([0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]).flat(), // HH3
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH2
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Snare
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Kick 2
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // Kick 1
-    ]
-  },
-  {
-    name: "Detroit Warehouse",
-    grid: [
-      Array(4).fill([0,0,0,0, 2,0,0,0, 0,0,0,0, 2,0,0,0]).flat(), // Ride
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH3
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH2
-      Array(4).fill([0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Snare
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Kick 2
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // Kick 1
-    ]
-  },
-  {
-    name: "Berlin Berghain",
-    grid: [
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Ride
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,4,4]).flat(), // HH3
-      Array(4).fill([1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1]).flat(), // HH2
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 2,0,0,0, 0,0,0,0, 2,0,0,0]).flat(), // Snare
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // Kick 2
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Kick 1
-    ]
-  },
-  {
-    name: "Acid Minimal",
-    grid: [
-      Array(4).fill([8,0,0,0, 0,0,0,0, 8,0,0,0, 0,0,0,0]).flat(), // Ride
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH3
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH2
-      Array(4).fill([0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Snare
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Kick 2
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // Kick 1
-    ]
-  },
-  {
-    name: "Dub Techno Echoes",
-    grid: [
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Ride
-      Array(4).fill([0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]).flat(), // HH3
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH2
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 4,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Snare
-      Array(4).fill([1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0]).flat(), // Kick 2
-      Array(4).fill([0,0,0,0, 2,0,0,0, 0,0,0,0, 2,0,0,0]).flat(), // Kick 1
-    ]
-  },
-  {
-    name: "Industrial Stomp",
-    grid: [
-      Array(4).fill([0,0,2,0, 0,0,2,0, 0,0,2,0, 0,0,2,0]).flat(), // Ride
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH3
-      Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat(), // HH2
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // HH1
-      Array(4).fill([0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0]).flat(), // Clap
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Snare
-      Array(4).fill([0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]).flat(), // Kick 2
-      Array(4).fill([1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0]).flat(), // Kick 1
-    ]
-  }
-];
+const FX_LIST = ['Siren', 'Riser', 'Noise', 'Laser', 'Impact', 'Zap', 'Sweep', 'Reverse'];
 
 const MELODIC_TECHNO_CHORDS = [
   [0, 2, 4], // i
@@ -165,7 +61,7 @@ const MELODIC_TECHNO_CHORDS = [
 ];
 
 interface Props {
-  grid: number[][]; // 8 rows x 64 cols
+  grid: number[][]; // 9 rows x 64 cols
   setGrid: React.Dispatch<React.SetStateAction<number[][]>>;
   currentPage: number;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
@@ -186,18 +82,94 @@ interface SavedPattern {
   synth1Settings: SynthSettings;
   synth2Settings: SynthSettings;
   subBassSettings: SubBassSettings;
+  bpm: number;
+  volumes: number[];
+  tracks: string[];
+  trackModes: TrackMode[];
+  fxSettings: {delay: number, reverb: number}[];
+  moogVolume: number;
+  synth1Volume: number;
+  synth2Volume: number;
+  subBassVolume: number;
+  musicalKey: string;
+  scaleType: string;
+  barLength: number;
 }
 
+const SONG_SECTIONS = [
+  { name: 'Intro', color: 'bg-[#4285F4]', border: 'border-[#4285F4]' },
+  { name: 'Build 1', color: 'bg-[#EA4335]', border: 'border-[#EA4335]' },
+  { name: 'Breakdown 1', color: 'bg-[#FBBC05]', border: 'border-[#FBBC05]' },
+  { name: 'Drop', color: 'bg-[#34A853]', border: 'border-[#34A853]' },
+  { name: 'Breakdown 2', color: 'bg-[#4285F4]', border: 'border-[#4285F4]' },
+  { name: 'Outro', color: 'bg-[#EA4335]', border: 'border-[#EA4335]' },
+];
+
+const SampleSelector = ({ 
+  value, 
+  onChange, 
+  onPreview, 
+  options, 
+  focusClass 
+}: { 
+  value: string, 
+  onChange: (val: string) => void, 
+  onPreview: (val: string | null) => void, 
+  options: any[], 
+  focusClass: string 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(o => o.id === value);
+
+  return (
+    <div className="relative w-28">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full bg-zinc-900 text-zinc-400 text-[10px] font-mono border border-zinc-800 rounded px-1 py-1 outline-none ${focusClass} truncate text-left flex justify-between items-center`}
+      >
+        <span>{selectedOption?.displayName || 'Select...'}</span>
+        <span className="text-[8px] opacity-50">▼</span>
+      </button>
+      
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); onPreview(null); }} />
+          <div 
+            className="absolute top-full left-0 w-48 bg-zinc-900 border border-zinc-800 rounded shadow-2xl z-50 max-h-64 overflow-y-auto mt-1"
+            onMouseLeave={() => onPreview(null)}
+          >
+            {options.map(option => (
+              <div
+                key={option.id}
+                className={`px-2 py-1.5 text-[10px] font-mono cursor-pointer hover:bg-zinc-800 transition-colors ${option.id === value ? 'text-emerald-400 bg-zinc-800/50' : 'text-zinc-400'}`}
+                onMouseEnter={() => onPreview(option.id)}
+                onClick={() => {
+                  onChange(option.id);
+                  setIsOpen(false);
+                  onPreview(null);
+                }}
+              >
+                {option.fullDisplayName}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTemplateSelect }: Props) {
-  const [velocityGrid, setVelocityGrid] = useState<number[][]>(Array(8).fill(null).map(() => Array(64).fill(1)));
+  const [velocityGrid, setVelocityGrid] = useState<number[][]>(Array(9).fill(null).map(() => Array(64).fill(1)));
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [currentStep, setCurrentStep] = useState(0);
-  const [volumes, setVolumes] = useState<number[]>(Array(8).fill(0.8));
+  const [volumes, setVolumes] = useState<number[]>(Array(9).fill(0.8));
   const [tracks, setTracks] = useState<string[]>(DEFAULT_TRACKS);
-  const [trackModes, setTrackModes] = useState<TrackMode[]>(Array(12).fill('n'));
-  const [activeTrackModes, setActiveTrackModes] = useState<TrackMode[]>(Array(12).fill('n'));
-  const [fxSettings, setFxSettings] = useState<{delay: number, reverb: number}[]>(Array(12).fill({delay: 0, reverb: 0}));
+  const [previewTracks, setPreviewTracks] = useState<(string | null)[]>(Array(9).fill(null));
+  const [trackModes, setTrackModes] = useState<TrackMode[]>(Array(13).fill('n'));
+  const [activeTrackModes, setActiveTrackModes] = useState<TrackMode[]>(Array(13).fill('n'));
+  const [fxSettings, setFxSettings] = useState<{delay: number, reverb: number}[]>(Array(13).fill({delay: 0, reverb: 0}));
   
   const [moogSequence, setMoogSequence] = useState<MoogStep[]>(Array(64).fill(null));
   const [moogVolume, setMoogVolume] = useState(0.8);
@@ -232,7 +204,67 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     envAmount: 0.2
   });
 
-  const [savedPatterns, setSavedPatterns] = useState<(SavedPattern | null)[]>(Array(4).fill(null));
+  const [songSections, setSongSections] = useState<(SavedPattern | null)[]>(Array(6).fill(null));
+  const [activeSongSection, setActiveSongSection] = useState<number | null>(null);
+
+  const saveSongSection = (idx: number) => {
+    const newSections = [...songSections];
+    newSections[idx] = {
+      grid: JSON.parse(JSON.stringify(grid)),
+      velocityGrid: JSON.parse(JSON.stringify(velocityGrid)),
+      moogSequence: [...moogSequence],
+      synth1Sequence: [...synth1Sequence],
+      synth2Sequence: [...synth2Sequence],
+      subBassSequence: [...subBassSequence],
+      moogSettings: { ...moogSettings },
+      synth1Settings: { ...synth1Settings },
+      synth2Settings: { ...synth2Settings },
+      subBassSettings: { ...subBassSettings },
+      bpm,
+      volumes: [...volumes],
+      tracks: [...tracks],
+      trackModes: [...trackModes],
+      fxSettings: JSON.parse(JSON.stringify(fxSettings)),
+      moogVolume,
+      synth1Volume,
+      synth2Volume,
+      subBassVolume,
+      musicalKey,
+      scaleType,
+      barLength,
+    };
+    setSongSections(newSections);
+  };
+
+  const loadSongSection = (idx: number) => {
+    const p = songSections[idx];
+    if (!p) return;
+    
+    setGrid(p.grid);
+    setVelocityGrid(p.velocityGrid);
+    setMoogSequence(p.moogSequence);
+    setSynth1Sequence(p.synth1Sequence);
+    setSynth2Sequence(p.synth2Sequence);
+    setSubBassSequence(p.subBassSequence);
+    setMoogSettings(p.moogSettings);
+    setSynth1Settings(p.synth1Settings);
+    setSynth2Settings(p.synth2Settings);
+    setSubBassSettings(p.subBassSettings);
+    setBpm(p.bpm);
+    setVolumes(p.volumes);
+    setTracks(p.tracks);
+    setTrackModes(p.trackModes);
+    setFxSettings(p.fxSettings);
+    setMoogVolume(p.moogVolume);
+    setSynth1Volume(p.synth1Volume);
+    setSynth2Volume(p.synth2Volume);
+    setSubBassVolume(p.subBassVolume);
+    setMusicalKey(p.musicalKey);
+    setScaleType(p.scaleType);
+    setBarLength(p.barLength);
+    
+    setActiveSongSection(idx);
+  };
 
   const [subBassSequence, setSubBassSequence] = useState<number[]>(Array(64).fill(0));
   const [subBassVolume, setSubBassVolume] = useState(0.6);
@@ -248,10 +280,11 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
   
   const [barLength, setBarLength] = useState(4);
   const [currentBar, setCurrentBar] = useState(1);
+  const [queuedFx, setQueuedFx] = useState<string | null>(null);
 
   const handleSaveSong = () => {
     const songData = {
-      version: "1.0",
+      version: "1.1",
       timestamp: new Date().toISOString(),
       grid,
       bpm,
@@ -271,6 +304,11 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
       subBassVolume,
       subBassSettings,
       velocityGrid,
+      songSections,
+      musicalKey,
+      scaleType,
+      barLength,
+      tracks,
     };
 
     const blob = new Blob([JSON.stringify(songData, null, 2)], { type: 'application/json' });
@@ -312,6 +350,11 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
         if (data.subBassVolume) setSubBassVolume(data.subBassVolume);
         if (data.subBassSettings) setSubBassSettings(data.subBassSettings);
         if (data.velocityGrid) setVelocityGrid(data.velocityGrid);
+        if (data.songSections) setSongSections(data.songSections);
+        if (data.musicalKey) setMusicalKey(data.musicalKey);
+        if (data.scaleType) setScaleType(data.scaleType);
+        if (data.barLength) setBarLength(data.barLength);
+        if (data.tracks) setTracks(data.tracks);
 
         // Reset transport
         setCurrentStep(0);
@@ -420,6 +463,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
   const gridRef = useRef(grid);
   const volumesRef = useRef(volumes);
   const tracksRef = useRef(tracks);
+  const previewTracksRef = useRef(previewTracks);
   const trackModesRef = useRef(trackModes);
   const fxSettingsRef = useRef(fxSettings);
   const velocityGridRef = useRef(velocityGrid);
@@ -438,6 +482,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
   const barLengthRef = useRef(barLength);
   const musicalKeyRef = useRef(musicalKey);
   const scaleTypeRef = useRef(scaleType);
+  const queuedFxRef = useRef<string | null>(null);
   
   const activeGridRef = useRef(grid);
   const activeVelocityGridRef = useRef(velocityGrid);
@@ -451,6 +496,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
   useEffect(() => { gridRef.current = grid; }, [grid]);
   useEffect(() => { volumesRef.current = volumes; }, [volumes]);
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
+  useEffect(() => { previewTracksRef.current = previewTracks; }, [previewTracks]);
   useEffect(() => { trackModesRef.current = trackModes; }, [trackModes]);
   useEffect(() => { activeTrackModesRef.current = activeTrackModes; }, [activeTrackModes]);
   useEffect(() => { fxSettingsRef.current = fxSettings; }, [fxSettings]);
@@ -470,6 +516,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
   useEffect(() => { barLengthRef.current = barLength; }, [barLength]);
   useEffect(() => { musicalKeyRef.current = musicalKey; }, [musicalKey]);
   useEffect(() => { scaleTypeRef.current = scaleType; }, [scaleType]);
+  useEffect(() => { queuedFxRef.current = queuedFx; }, [queuedFx]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -485,7 +532,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
       
       if (e.code === 'Space') {
         e.preventDefault();
-        setTrackModes(Array(12).fill('n'));
+        setTrackModes(Array(13).fill('n'));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -496,7 +543,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     audioEngineRef.current = new AudioEngine();
     // Preload all available samples
     AVAILABLE_SAMPLES.forEach(sample => {
-      audioEngineRef.current?.loadSample(sample.fileName, sample.url);
+      audioEngineRef.current?.loadSample(sample.id, sample.url);
     });
     
     return () => {
@@ -618,22 +665,24 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     const delayTime = 1.5 * (60.0 / bpm); // dotted quarter note
 
     // Play active tracks for this step using the active grid and volumes
+    const gridStep = stepNumber % 64;
     activeGridRef.current.forEach((row, trackIndex) => {
       const mode = activeTrackModesRef.current[trackIndex];
       if (mode === 'm' || (anySolo && mode !== 's')) return;
 
-      const repeat = row[stepNumber];
+      const repeat = row[gridStep];
       if (repeat > 0) {
         if (totalBarsRef.current % repeat === 0) {
           const fx = fxSettingsRef.current[trackIndex];
-          let velocity = volumesRef.current[trackIndex] * activeVelocityGridRef.current[trackIndex][stepNumber];
-          const trackName = tracksRef.current[trackIndex].toLowerCase();
+          let velocity = volumesRef.current[trackIndex] * activeVelocityGridRef.current[trackIndex][gridStep];
+          const trackSample = previewTracksRef.current[trackIndex] || tracksRef.current[trackIndex];
+          const trackName = trackSample.toLowerCase();
           if (trackName.includes('hh')) {
             // Randomize velocity more significantly
             velocity = velocity * (0.5 + Math.random() * 0.5);
           }
           
-          audioEngineRef.current?.playSample(tracksRef.current[trackIndex], time, velocity, {
+          audioEngineRef.current?.playSample(trackSample, time, velocity, {
             delay: fx.delay,
             reverb: fx.reverb,
             time: delayTime
@@ -643,11 +692,11 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     });
     
     // Play Synth 1 if active
-    const synth1Mode = activeTrackModesRef.current[8];
+    const synth1Mode = activeTrackModesRef.current[9];
     if (synth1Mode !== 'm' && (!anySolo || synth1Mode === 's')) {
-      const synth1Step = activeSynth1SequenceRef.current[stepNumber];
+      const synth1Step = activeSynth1SequenceRef.current[gridStep];
       if (synth1Step !== null) {
-        const fx = fxSettingsRef.current[8];
+        const fx = fxSettingsRef.current[9];
         const freq = getFreq(synth1Step.scaleDegree, 0, musicalKeyRef.current, scaleTypeRef.current);
         audioEngineRef.current?.playMelodicSynth(time, freq, synth1VolumeRef.current, synth1SettingsRef.current, {
           delay: fx.delay,
@@ -658,11 +707,11 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     }
 
     // Play Synth 2 if active
-    const synth2Mode = activeTrackModesRef.current[9];
+    const synth2Mode = activeTrackModesRef.current[10];
     if (synth2Mode !== 'm' && (!anySolo || synth2Mode === 's')) {
-      const synth2Step = activeSynth2SequenceRef.current[stepNumber];
+      const synth2Step = activeSynth2SequenceRef.current[gridStep];
       if (synth2Step !== null) {
-        const fx = fxSettingsRef.current[9];
+        const fx = fxSettingsRef.current[10];
         const freq = getFreq(synth2Step.scaleDegree, 1, musicalKeyRef.current, scaleTypeRef.current);
         audioEngineRef.current?.playMelodicSynth(time, freq, synth2VolumeRef.current, synth2SettingsRef.current, {
           delay: fx.delay,
@@ -673,11 +722,11 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     }
     
     // Play Moog Bass if active
-    const moogMode = activeTrackModesRef.current[10];
+    const moogMode = activeTrackModesRef.current[11];
     if (moogMode !== 'm' && (!anySolo || moogMode === 's')) {
-      const moogStep = activeMoogSequenceRef.current[stepNumber];
+      const moogStep = activeMoogSequenceRef.current[gridStep];
       if (moogStep !== null) {
-        const fx = fxSettingsRef.current[10];
+        const fx = fxSettingsRef.current[11];
         const freq = getFreq(moogStep.scaleDegree, -1, musicalKeyRef.current, scaleTypeRef.current);
         audioEngineRef.current?.playMoogBass(time, freq, moogVolumeRef.current, moogSettingsRef.current, {
           delay: fx.delay,
@@ -688,11 +737,11 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
     }
     
     // Play Sub Bass if active
-    const subBassMode = activeTrackModesRef.current[11];
+    const subBassMode = activeTrackModesRef.current[12];
     if (subBassMode !== 'm' && (!anySolo || subBassMode === 's')) {
-      const val = subBassSequenceRef.current[stepNumber];
+      const val = subBassSequenceRef.current[gridStep];
       if (val > 0) {
-        const fx = fxSettingsRef.current[11];
+        const fx = fxSettingsRef.current[12];
         // Use the stored scale degree (val - 1)
         const freq = getFreq(val - 1, -2, musicalKeyRef.current, scaleTypeRef.current);
         audioEngineRef.current?.playSubBass(time, freq, subBassVolumeRef.current, subBassSettingsRef.current, {
@@ -701,6 +750,18 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
           time: delayTime
         });
       }
+    }
+
+    // Play Queued FX at start of Last Bar
+    const isLastBarStart = stepNumber === (barLengthRef.current - 1) * 16;
+    if (isLastBarStart && queuedFxRef.current) {
+      audioEngineRef.current?.playSample(`FX_${queuedFxRef.current}`, time, 0.8, {
+        delay: 0,
+        reverb: 2,
+        time: 0
+      });
+      // Clear queue
+      setTimeout(() => setQueuedFx(null), 0);
     }
 
     // Update UI (using a slight timeout to sync with audio time roughly)
@@ -910,78 +971,80 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
               </button>
             ))}
           </div>
+        </div>
 
-          <div className="flex items-center gap-4 bg-zinc-950/50 px-4 py-2 rounded-xl border border-zinc-800">
-            <div className="flex flex-col">
-              <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Key</label>
-              <select 
-                value={musicalKey} 
-                onChange={(e) => setMusicalKey(e.target.value)}
-                className="bg-zinc-900 text-white text-sm border border-zinc-700 rounded px-2 py-1 outline-none focus:border-emerald-500"
+        <div className="flex items-center gap-4 bg-zinc-950/50 px-4 py-2 rounded-xl border border-zinc-800">
+          <div className="flex flex-col">
+            <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Key</label>
+            <select 
+              value={musicalKey} 
+              onChange={(e) => setMusicalKey(e.target.value)}
+              className="bg-zinc-900 text-white text-sm border border-zinc-700 rounded px-2 py-1 outline-none focus:border-emerald-500"
+            >
+              {NOTES.map(note => <option key={note} value={note}>{note}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col">
+            <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Scale</label>
+            <select 
+              value={scaleType} 
+              onChange={(e) => setScaleType(e.target.value)}
+              className="bg-zinc-900 text-white text-sm border border-zinc-700 rounded px-2 py-1 outline-none focus:border-emerald-500"
+            >
+              <option value="Major">Major</option>
+              <option value="Minor">Minor</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 bg-zinc-950/50 px-4 py-2 rounded-xl border border-zinc-800">
+          <div className="flex flex-col">
+            <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Bar Reset</label>
+            <select 
+              value={barLength} 
+              onChange={(e) => setBarLength(Number(e.target.value))}
+              className="bg-zinc-900 text-white text-sm border border-zinc-700 rounded px-2 py-1 outline-none focus:border-emerald-500"
+            >
+              <option value={1}>1 Bar</option>
+              <option value={2}>2 Bars</option>
+              <option value={4}>4 Bars</option>
+              <option value={8}>8 Bars</option>
+            </select>
+          </div>
+          <div className="flex flex-col items-center justify-center px-2">
+            <label className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mb-1">Current</label>
+            <div className="text-emerald-400 font-mono font-bold text-lg leading-none">{currentBar}</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-zinc-950/50 px-4 py-2 rounded-xl border border-zinc-800">
+          <div className="flex flex-col">
+            <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Project</label>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveSong}
+                className="p-2 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-zinc-700 rounded transition-colors"
+                title="Save Song to File"
               >
-                {NOTES.map(note => <option key={note} value={note}>{note}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col">
-              <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Scale</label>
-              <select 
-                value={scaleType} 
-                onChange={(e) => setScaleType(e.target.value)}
-                className="bg-zinc-900 text-white text-sm border border-zinc-700 rounded px-2 py-1 outline-none focus:border-emerald-500"
+                <Save size={16} />
+              </button>
+              <label 
+                className="p-2 bg-zinc-900 hover:bg-zinc-800 text-cyan-400 border border-zinc-700 rounded transition-colors cursor-pointer"
+                title="Load Song from File"
               >
-                <option value="Major">Major</option>
-                <option value="Minor">Minor</option>
-              </select>
+                <Upload size={16} />
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleLoadSong}
+                  className="hidden"
+                />
+              </label>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-4 bg-zinc-950/50 px-4 py-2 rounded-xl border border-zinc-800">
-            <div className="flex flex-col">
-              <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Bar Reset</label>
-              <select 
-                value={barLength} 
-                onChange={(e) => setBarLength(Number(e.target.value))}
-                className="bg-zinc-900 text-white text-sm border border-zinc-700 rounded px-2 py-1 outline-none focus:border-emerald-500"
-              >
-                <option value={1}>1 Bar</option>
-                <option value={2}>2 Bars</option>
-                <option value={3}>3 Bars</option>
-                <option value={4}>4 Bars</option>
-              </select>
-            </div>
-            <div className="flex flex-col items-center justify-center px-2">
-              <label className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mb-1">Current</label>
-              <div className="text-emerald-400 font-mono font-bold text-lg leading-none">{currentBar}</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 bg-zinc-950/50 px-4 py-2 rounded-xl border border-zinc-800">
-            <div className="flex flex-col">
-              <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Project</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSaveSong}
-                  className="p-2 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-zinc-700 rounded transition-colors"
-                  title="Save Song to File"
-                >
-                  <Save size={16} />
-                </button>
-                <label 
-                  className="p-2 bg-zinc-900 hover:bg-zinc-800 text-cyan-400 border border-zinc-700 rounded transition-colors cursor-pointer"
-                  title="Load Song from File"
-                >
-                  <Upload size={16} />
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleLoadSong}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-
+        <div className="flex items-center gap-4 bg-zinc-950/50 px-4 py-2 rounded-xl border border-zinc-800">
           <div className="flex flex-col">
             <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Tempo</label>
             <div className="flex items-center gap-2">
@@ -1000,136 +1063,85 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
           <div className="flex flex-col">
             <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Clear</label>
             <button
-              onClick={() => setTrackModes(Array(10).fill('n'))}
+              onClick={() => setTrackModes(Array(13).fill('n'))}
               className="px-3 py-1 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded hover:bg-zinc-700 hover:text-white transition-colors text-xs font-bold"
             >
               All M/S
             </button>
           </div>
+        </div>
+      </div>
 
-          <div className="flex flex-col">
-            <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Pattern</label>
-            <select
-              onChange={(e) => {
-                const idx = parseInt(e.target.value);
-                if (idx >= 0) {
-                  const pattern = TECHNO_PATTERNS[idx];
-                  setGrid(pattern.grid);
-                  
-                  // Randomize velocities for HH tracks in the template (64 steps)
-                  setVelocityGrid(vPrev => {
-                    const newV = vPrev.map((row, r) => {
-                      const trackName = tracks[r].toLowerCase();
-                      if (trackName.includes('hh')) {
-                        return Array(64).fill(0).map(() => 0.4 + Math.random() * 0.6);
-                      }
-                      return Array(64).fill(1);
-                    });
-                    return newV;
-                  });
-                  
-                  // Suggest sub bass for new templates (64 steps, mirrored)
-                  const subBass1 = Array(4).fill([1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]).flat();
-                  const subBass2 = Array(4).fill([1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0]).flat();
-
-                  if (pattern.name === "Minimal Techno") {
-                    setBpm(128);
-                    setSubBassSequence(subBass1);
-                  } else if (pattern.name === "Melodic Techno") {
-                    setBpm(124);
-                    setSubBassSequence(subBass1);
-                  } else if (pattern.name === "Ambient Techno") {
-                    setBpm(110);
-                    setSubBassSequence(subBass2);
-                  } else if (pattern.name === "Dub Techno") {
-                    setBpm(118);
-                    setSubBassSequence(subBass1);
+      <div className="grid grid-cols-6 gap-4 mb-8">
+        {SONG_SECTIONS.map((section, idx) => {
+          const isSaved = songSections[idx] !== null;
+          const isActive = activeSongSection === idx;
+          
+          return (
+            <div key={section.name} className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  if (isSaved) {
+                    loadSongSection(idx);
+                  } else {
+                    saveSongSection(idx);
                   }
-                  
-                  if (onTemplateSelect) onTemplateSelect(pattern.name);
-                  e.target.value = "-1"; // reset selection
-                }
-              }}
-              defaultValue="-1"
-              className="bg-zinc-900 text-white text-sm border border-zinc-700 rounded px-2 py-1 outline-none focus:border-emerald-500"
-            >
-              <option value="-1" disabled>Select Template...</option>
-              {TECHNO_PATTERNS.map((pattern, idx) => (
-                <option key={idx} value={idx}>{pattern.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <label className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Save/Load</label>
-            <div className="flex gap-1">
-              {[0, 1, 2, 3].map(idx => (
+                }}
+                className={`h-24 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-2 relative overflow-hidden ${
+                  isSaved 
+                    ? `${section.color} ${section.border} text-white shadow-lg` 
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
+                } ${isActive ? 'animate-pulse ring-4 ring-white/20' : ''}`}
+              >
+                <span className="text-xs font-black uppercase tracking-widest">{section.name}</span>
+                {isSaved && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-white/50" />}
+                {!isSaved && <span className="text-[10px] font-bold opacity-50">CLICK TO SAVE</span>}
+                {isSaved && isActive && <span className="text-[10px] font-bold animate-bounce mt-1">ACTIVE</span>}
+              </button>
+              {isSaved && (
                 <button
-                  key={`save-${idx}`}
                   onClick={() => {
-                    if (savedPatterns[idx]) {
-                      // Load
-                      const p = savedPatterns[idx]!;
-                      setGrid(p.grid);
-                      if (p.velocityGrid) setVelocityGrid(p.velocityGrid);
-                      setMoogSequence(p.moogSequence);
-                      setSynth1Sequence(p.synth1Sequence || Array(64).fill(null));
-                      setSynth2Sequence(p.synth2Sequence || Array(64).fill(null));
-                      setSubBassSequence(p.subBassSequence);
-                      if (p.moogSettings) setMoogSettings(p.moogSettings);
-                      if (p.synth1Settings) setSynth1Settings(p.synth1Settings);
-                      if (p.synth2Settings) setSynth2Settings(p.synth2Settings);
-                      if (p.subBassSettings) setSubBassSettings(p.subBassSettings);
-                    } else {
-                      // Save
-                      const newSaved = [...savedPatterns];
-                      newSaved[idx] = {
-                        grid: JSON.parse(JSON.stringify(grid)),
-                        velocityGrid: JSON.parse(JSON.stringify(velocityGrid)),
-                        moogSequence: [...moogSequence],
-                        synth1Sequence: [...synth1Sequence],
-                        synth2Sequence: [...synth2Sequence],
-                        subBassSequence: [...subBassSequence],
-                        moogSettings: { ...moogSettings },
-                        synth1Settings: { ...synth1Settings },
-                        synth2Settings: { ...synth2Settings },
-                        subBassSettings: { ...subBassSettings }
-                      };
-                      setSavedPatterns(newSaved);
-                    }
+                    const newSections = [...songSections];
+                    newSections[idx] = null;
+                    setSongSections(newSections);
+                    if (activeSongSection === idx) setActiveSongSection(null);
                   }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    // Force overwrite save
-                    const newSaved = [...savedPatterns];
-                    newSaved[idx] = {
-                      grid: JSON.parse(JSON.stringify(grid)),
-                      velocityGrid: JSON.parse(JSON.stringify(velocityGrid)),
-                      moogSequence: [...moogSequence],
-                      synth1Sequence: [...synth1Sequence],
-                      synth2Sequence: [...synth2Sequence],
-                      subBassSequence: [...subBassSequence],
-                      moogSettings: { ...moogSettings },
-                      synth1Settings: { ...synth1Settings },
-                      synth2Settings: { ...synth2Settings },
-                      subBassSettings: { ...subBassSettings }
-                    };
-                    setSavedPatterns(newSaved);
-                  }}
-                  className={`w-8 h-8 rounded flex items-center justify-center text-[10px] font-bold border transition-all ${
-                    savedPatterns[idx]
-                      ? 'bg-zinc-700 text-emerald-400 border-emerald-500/50 shadow-[0_0_5px_rgba(16,185,129,0.3)]'
-                      : 'bg-zinc-800 text-zinc-600 border-zinc-700 hover:bg-zinc-700 hover:text-zinc-400'
-                  }`}
-                  title={savedPatterns[idx] ? "Click to Load, Right-click to Overwrite" : "Click to Save current pattern"}
+                  className="text-[10px] text-zinc-600 hover:text-red-400 font-bold uppercase tracking-tighter text-center transition-colors"
                 >
-                  S{idx + 1}
+                  Clear Section
                 </button>
-              ))}
+              )}
             </div>
-          </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 mb-6 bg-zinc-950/30 p-4 rounded-xl border border-zinc-800/50">
+        <div className="flex flex-col mr-2">
+          <label className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">Bar 4 One-Shot FX</label>
+          <div className="text-[9px] text-zinc-600 font-medium italic">Triggers at start of Bar 4 (if 4 Bars set)</div>
         </div>
+        <div className="flex flex-wrap gap-2">
+          {FX_LIST.map(fx => (
+            <button
+              key={fx}
+              onClick={() => setQueuedFx(queuedFx === fx ? null : fx)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border ${
+                queuedFx === fx
+                  ? 'bg-emerald-500 text-white border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-105'
+                  : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
+              }`}
+            >
+              {fx}
+            </button>
+          ))}
+        </div>
+        {queuedFx && (
+          <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Queued: {queuedFx}</span>
+          </div>
+        )}
       </div>
 
       <div className="space-y-6 overflow-x-auto pb-4">
@@ -1139,7 +1151,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
             <div className="flex flex-col gap-2 mb-4 pb-4 border-b border-zinc-800">
               <div className="flex items-center gap-2">
                 <div className="w-44 flex items-center justify-end gap-2 pr-2">
-                  {renderModeToggle(8)}
+                  {renderModeToggle(9)}
                   <div className="w-28 text-right text-emerald-400 text-xs font-mono truncate font-bold">Pluck Synth</div>
                 </div>
                 <div className="flex items-center gap-2 mr-2 bg-zinc-950/50 px-2 py-1.5 rounded-lg border border-zinc-800">
@@ -1154,7 +1166,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
                     className="w-16 accent-emerald-500"
                   />
                 </div>
-                {renderFXControls(8)}
+                {renderFXControls(9)}
                 <div className="flex gap-1">
                   {synth1Sequence.slice(currentPage * 16, (currentPage + 1) * 16).map((stepData, colOnPage) => {
                     const col = currentPage * 16 + colOnPage;
@@ -1251,7 +1263,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
             <div className="flex flex-col gap-2 mb-4 pb-4 border-b border-zinc-800">
               <div className="flex items-center gap-2">
                 <div className="w-44 flex items-center justify-end gap-2 pr-2">
-                  {renderModeToggle(9)}
+                  {renderModeToggle(10)}
                   <div className="w-28 text-right text-blue-400 text-xs font-mono truncate font-bold">Lead Synth</div>
                 </div>
                 <div className="flex items-center gap-2 mr-2 bg-zinc-950/50 px-2 py-1.5 rounded-lg border border-zinc-800">
@@ -1266,7 +1278,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
                     className="w-16 accent-blue-500"
                   />
                 </div>
-                {renderFXControls(9)}
+                {renderFXControls(10)}
                 <div className="flex gap-1">
                   {synth2Sequence.slice(currentPage * 16, (currentPage + 1) * 16).map((stepData, colOnPage) => {
                     const col = currentPage * 16 + colOnPage;
@@ -1363,7 +1375,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
             <div className="flex flex-col gap-2 mb-4 pb-4 border-b border-zinc-800">
               <div className="flex items-center gap-2">
                 <div className="w-44 flex items-center justify-end gap-2 pr-2">
-                  {renderModeToggle(10)}
+                  {renderModeToggle(11)}
                   <div className="w-28 text-right text-purple-400 text-xs font-mono truncate font-bold">Moog Bass</div>
                 </div>
                 <div className="flex items-center gap-2 mr-2 bg-zinc-950/50 px-2 py-1.5 rounded-lg border border-zinc-800">
@@ -1378,7 +1390,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
                     className="w-16 accent-purple-500"
                   />
                 </div>
-                {renderFXControls(10)}
+                {renderFXControls(11)}
                 <div className="flex gap-1">
                   {moogSequence.slice(currentPage * 16, (currentPage + 1) * 16).map((stepData, colOnPage) => {
                     const col = currentPage * 16 + colOnPage;
@@ -1472,94 +1484,122 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
             </div>
 
             {/* Existing Tracks */}
-            {tracks.map((track, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-44 flex items-center justify-end gap-2 pr-2">
-                  {renderModeToggle(i)}
-                  <select
-                    value={track}
-                    onChange={(e) => {
-                      const newTracks = [...tracks];
-                      newTracks[i] = e.target.value;
-                      setTracks(newTracks);
-                    }}
-                    className="w-28 bg-zinc-900 text-zinc-400 text-xs font-mono border border-zinc-800 rounded px-1 py-1 outline-none focus:border-emerald-500 truncate"
-                  >
-                    {AVAILABLE_SAMPLES.map(sample => (
-                      <option key={sample.fileName} value={sample.fileName}>
-                        {sample.displayName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 mr-2 bg-zinc-950/50 px-2 py-1.5 rounded-lg border border-zinc-800">
-                  <Volume2 size={12} className="text-zinc-500" />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={volumes[i]}
-                    onChange={(e) => {
-                      const newVols = [...volumes];
-                      newVols[i] = parseFloat(e.target.value);
-                      setVolumes(newVols);
-                    }}
-                    className="w-16 accent-emerald-500"
-                  />
-                </div>
-                {renderFXControls(i)}
-                <div className="flex gap-1">
-                  {grid[i] && grid[i].slice(currentPage * 16, (currentPage + 1) * 16).map((isActive, colOnPage) => {
-                    const col = currentPage * 16 + colOnPage;
-                    return (
-                      <button
-                        key={col}
-                        onClick={() => handleToggleCell(i, colOnPage)}
-                        className={`w-8 h-8 rounded-sm border transition-all flex items-center justify-center text-[10px] font-bold ${
-                          isActive > 0
-                            ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)] text-emerald-950'
-                            : currentStep === col && isPlaying
-                            ? 'bg-zinc-700 border-zinc-600 text-transparent'
-                            : col % 4 === 0
-                            ? 'bg-zinc-700/40 border-zinc-600 hover:bg-zinc-600 text-transparent'
-                            : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-transparent'
-                        }`}
-                      >
-                        {isActive > 0 ? isActive : ''}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={() => {
-                    setGrid(prev => {
-                      const newGrid = [...prev];
-                      newGrid[i] = [...newGrid[i]];
-                      const start = currentPage * 16;
-                      for (let c = 0; c < 16; c++) {
-                        const col = start + c;
-                        newGrid[i][col] = 0;
-                        if (currentPage === 0) {
-                          [16, 32, 48].forEach(offset => newGrid[i][col + offset] = 0);
+            {[...tracks].reverse().map((track, reversedIndex) => {
+              const i = tracks.length - 1 - reversedIndex;
+              const rowColor = i === 0 ? 'rose' : (i >= 1 && i <= 2 ? 'orange' : (i >= 3 && i <= 5 ? 'amber' : 'sky'));
+              const colorClasses: Record<string, string> = {
+                rose: 'bg-rose-500 border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.5)] text-rose-950',
+                orange: 'bg-orange-500 border-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.5)] text-orange-950',
+                amber: 'bg-amber-500 border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.5)] text-amber-950',
+                sky: 'bg-sky-500 border-sky-400 shadow-[0_0_10px_rgba(14,165,233,0.5)] text-sky-950',
+              };
+              const accentClass = i === 0 ? 'accent-rose-500' : (i >= 1 && i <= 2 ? 'accent-orange-500' : (i >= 3 && i <= 5 ? 'accent-amber-500' : 'accent-sky-500'));
+              const focusClass = i === 0 ? 'focus:border-rose-500' : (i >= 1 && i <= 2 ? 'focus:border-orange-500' : (i >= 3 && i <= 5 ? 'focus:border-amber-500' : 'focus:border-sky-500'));
+
+              return (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-44 flex items-center justify-end gap-2 pr-2">
+                    {renderModeToggle(i)}
+                    <SampleSelector
+                      value={track}
+                      onChange={(val) => {
+                        const newTracks = [...tracks];
+                        newTracks[i] = val;
+                        setTracks(newTracks);
+                      }}
+                      onPreview={(val) => {
+                        const newPreview = [...previewTracks];
+                        newPreview[i] = val;
+                        setPreviewTracks(newPreview);
+                        
+                        // One-shot preview if not playing
+                        if (val && !isPlaying) {
+                          audioEngineRef.current?.playSample(val, 0, volumes[i], {
+                            delay: 0,
+                            reverb: 0,
+                            time: 0
+                          });
                         }
-                      }
-                      return newGrid;
-                    });
-                  }}
-                  className="w-6 h-8 bg-zinc-800 text-zinc-500 hover:text-red-400 border border-zinc-700 rounded-sm text-[10px] font-bold transition-colors"
-                  title="Clear Row"
-                >
-                  C
-                </button>
-              </div>
-            ))}
+                      }}
+                      options={AVAILABLE_SAMPLES.filter(sample => {
+                        if (i === 0) return sample.folder === 'Kicks';
+                        if (i === 1 || i === 2) return sample.folder === 'Claps' || sample.folder === 'Snares';
+                        if (i >= 3 && i <= 5) return sample.folder === 'Hats';
+                        if (i >= 6 && i <= 8) return sample.folder === 'Percs' || sample.folder === 'Rides' || sample.folder === 'Shakers';
+                        return true;
+                      })}
+                      focusClass={focusClass}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 mr-2 bg-zinc-950/50 px-2 py-1.5 rounded-lg border border-zinc-800">
+                    <Volume2 size={12} className="text-zinc-500" />
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volumes[i]}
+                      onChange={(e) => {
+                        const newVols = [...volumes];
+                        newVols[i] = parseFloat(e.target.value);
+                        setVolumes(newVols);
+                      }}
+                      className={`w-16 ${accentClass}`}
+                    />
+                  </div>
+                  {renderFXControls(i)}
+                  <div className="flex gap-1">
+                    {grid[i] && grid[i].slice(currentPage * 16, (currentPage + 1) * 16).map((isActive, colOnPage) => {
+                      const col = currentPage * 16 + colOnPage;
+                      return (
+                        <button
+                          key={col}
+                          onClick={() => handleToggleCell(i, colOnPage)}
+                          className={`w-8 h-8 rounded-sm border transition-all flex items-center justify-center text-[10px] font-bold ${
+                            isActive > 0
+                              ? colorClasses[rowColor]
+                              : currentStep === col && isPlaying
+                              ? 'bg-zinc-700 border-zinc-600 text-transparent'
+                              : col % 4 === 0
+                              ? 'bg-zinc-700/40 border-zinc-600 hover:bg-zinc-600 text-transparent'
+                              : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-transparent'
+                          }`}
+                        >
+                          {isActive > 0 ? isActive : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setGrid(prev => {
+                        const newGrid = [...prev];
+                        newGrid[i] = [...newGrid[i]];
+                        const start = currentPage * 16;
+                        for (let c = 0; c < 16; c++) {
+                          const col = start + c;
+                          newGrid[i][col] = 0;
+                          if (currentPage === 0) {
+                            [16, 32, 48].forEach(offset => newGrid[i][col + offset] = 0);
+                          }
+                        }
+                        return newGrid;
+                      });
+                    }}
+                    className="w-6 h-8 bg-zinc-800 text-zinc-500 hover:text-red-400 border border-zinc-700 rounded-sm text-[10px] font-bold transition-colors"
+                    title="Clear Row"
+                  >
+                    C
+                  </button>
+                </div>
+              );
+            })}
 
             {/* Sub Bass Row */}
             <div className="flex flex-col gap-2 pt-4 border-t border-zinc-800">
               <div className="flex items-center gap-2">
                 <div className="w-44 flex items-center justify-end gap-2 pr-2">
-                  {renderModeToggle(11)}
+                  {renderModeToggle(12)}
                   <div className="w-28 text-right text-cyan-400 text-xs font-mono truncate font-bold">Sub Bass</div>
                 </div>
                 <div className="flex items-center gap-2 mr-2 bg-zinc-950/50 px-2 py-1.5 rounded-lg border border-zinc-800">
@@ -1574,7 +1614,7 @@ export function Sequencer({ grid, setGrid, currentPage, setCurrentPage, onTempla
                     className="w-16 accent-cyan-500"
                   />
                 </div>
-                {renderFXControls(11)}
+                {renderFXControls(12)}
                 <div className="flex gap-1">
                   {subBassSequence.slice(currentPage * 16, (currentPage + 1) * 16).map((isActive, colOnPage) => {
                     const col = currentPage * 16 + colOnPage;

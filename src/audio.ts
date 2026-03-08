@@ -286,6 +286,125 @@ export class AudioEngine {
       gain.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
       osc.start(time);
       osc.stop(time + 0.3);
+    } else if (name.startsWith('FX_')) {
+      const type = name.split('_')[1];
+      if (type === 'Siren') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, time);
+        osc.frequency.exponentialRampToValueAtTime(880, time + 0.5);
+        osc.frequency.exponentialRampToValueAtTime(440, time + 1.0);
+        osc.frequency.exponentialRampToValueAtTime(880, time + 1.5);
+        osc.frequency.exponentialRampToValueAtTime(440, time + 2.0);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.4, time + 0.1);
+        gain.gain.setValueAtTime(0.4, time + 1.8);
+        gain.gain.linearRampToValueAtTime(0, time + 2.0);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(time);
+        osc.stop(time + 2.0);
+      } else if (type === 'Riser') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, time);
+        osc.frequency.exponentialRampToValueAtTime(2000, time + 4.0);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.3, time + 3.5);
+        gain.gain.linearRampToValueAtTime(0, time + 4.0);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(time);
+        osc.stop(time + 4.0);
+      } else if (type === 'Noise') {
+        const bufferSize = ctx.sampleRate * 2.0;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(100, time);
+        filter.frequency.exponentialRampToValueAtTime(10000, time + 2.0);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.4, time + 0.5);
+        gain.gain.linearRampToValueAtTime(0, time + 2.0);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(masterGain);
+        noise.start(time);
+      } else if (type === 'Laser') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(3000, time);
+        osc.frequency.exponentialRampToValueAtTime(100, time + 0.2);
+        gain.gain.setValueAtTime(0.3, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(time);
+        osc.stop(time + 0.2);
+      } else if (type === 'Impact') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(80, time);
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + 1.0);
+        gain.gain.setValueAtTime(0.8, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 1.0);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(time);
+        osc.stop(time + 1.0);
+      } else if (type === 'Zap') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1000, time);
+        osc.frequency.exponentialRampToValueAtTime(10, time + 0.1);
+        gain.gain.setValueAtTime(0.4, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(time);
+        osc.stop(time + 0.1);
+      } else if (type === 'Sweep') {
+        const bufferSize = ctx.sampleRate * 1.0;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(10000, time);
+        filter.frequency.exponentialRampToValueAtTime(100, time + 1.0);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.4, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 1.0);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(masterGain);
+        noise.start(time);
+      } else if (type === 'Reverse') {
+        const bufferSize = ctx.sampleRate * 0.5;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.5, time + 0.45);
+        gain.gain.linearRampToValueAtTime(0, time + 0.5);
+        noise.connect(gain);
+        gain.connect(masterGain);
+        noise.start(time);
+      }
     }
   }
 }

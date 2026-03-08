@@ -1,7 +1,5 @@
 {
   "name": "Techno Playground",
   "description": "A professional techno sequencer with sample playback, Moog-style synthesis, and real-time performance controls.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }
